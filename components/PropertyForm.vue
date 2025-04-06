@@ -127,6 +127,7 @@ const emit = defineEmits<{
   (e: 'cancel'): void;
 }>();
 
+// Initialize with default values
 const formData = ref({
   address: '',
   city: '',
@@ -138,19 +139,9 @@ const formData = ref({
 });
 
 // Initialize form data when property changes, with null checks
-watchEffect(() => {
-  if (props.property) {
-    formData.value = {
-      address: props.property?.address ?? '',
-      city: props.property?.city ?? '',
-      type: props.property?.type ?? 'apartment',
-      price: props.property?.price ?? 0,
-      surface: props.property?.surface ?? 0,
-      bedrooms: props.property?.bedrooms ?? 0,
-      description: props.property?.description ?? '',
-    };
-  } else {
-    // Reset to default values when property is null
+watch(() => props.property, (newProperty) => {
+  if (!newProperty) {
+    // Reset to default values if property is null
     formData.value = {
       address: '',
       city: '',
@@ -160,8 +151,19 @@ watchEffect(() => {
       bedrooms: 0,
       description: '',
     };
+    return;
   }
-});
+  
+  formData.value = {
+    address: newProperty.address ?? '',
+    city: newProperty.city ?? '',
+    type: newProperty.type ?? 'apartment',
+    price: newProperty.price ?? 0,
+    surface: newProperty.surface ?? 0,
+    bedrooms: newProperty.bedrooms ?? 0,
+    description: newProperty.description ?? '',
+  };
+}, { immediate: true });
 
 const handleSubmit = () => {
   emit('submit', {

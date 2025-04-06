@@ -33,5 +33,6 @@ export { useSupabaseClient } from '../node_modules/@nuxtjs/supabase/dist/runtime
 export { useSupabaseCookieRedirect } from '../node_modules/@nuxtjs/supabase/dist/runtime/composables/useSupabaseCookieRedirect';
 export { useSupabaseSession } from '../node_modules/@nuxtjs/supabase/dist/runtime/composables/useSupabaseSession';
 export { useSupabaseUser } from '../node_modules/@nuxtjs/supabase/dist/runtime/composables/useSupabaseUser';
+export { useProfileStore } from '../stores/profile';
 export { defineStore, acceptHMRUpdate, usePinia, storeToRefs } from '../node_modules/@pinia/nuxt/dist/runtime/composables';
 export { definePageMeta } from '../node_modules/nuxt/dist/pages/runtime/composables';

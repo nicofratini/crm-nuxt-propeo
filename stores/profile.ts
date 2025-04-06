@@ -5,6 +5,7 @@ interface Profile {
   email: string
   full_name: string | null
   is_admin: boolean
+  super_admin: boolean
   created_at: string
   updated_at: string
 }
@@ -17,7 +18,8 @@ export const useProfileStore = defineStore('profile', {
   }),
 
   getters: {
-    isAdmin: (state) => state.profile?.is_admin ?? false,
+    isAdmin: (state) => state.profile?.is_admin || state.profile?.super_admin || false,
+    isSuperAdmin: (state) => state.profile?.super_admin || false,
     fullName: (state) => state.profile?.full_name ?? 'Utilisateur',
   },
 
