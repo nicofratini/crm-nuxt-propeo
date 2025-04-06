@@ -4,3 +4,10 @@
     <p class="text-gray-600">Calendrier à venir</p>
   </div>
 </template>
+
+<script setup lang="ts">
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'auth'
+})
+</script>

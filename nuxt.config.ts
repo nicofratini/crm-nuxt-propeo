@@ -10,6 +10,8 @@ export default defineNuxtConfig({
   ],
   css: ['~/assets/css/tailwind.css'],
   supabase: {
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_KEY,
     redirect: false,
     redirectOptions: {
       login: '/auth/login',
@@ -28,7 +30,6 @@ export default defineNuxtConfig({
       }
     }
   },
-  // Add nitro configuration for proper server handling
   nitro: {
     compressPublicAssets: true,
     routeRules: {
@@ -36,16 +37,29 @@ export default defineNuxtConfig({
         headers: {
           'Access-Control-Allow-Origin': '*'
         }
+      },
+      '/api/**': {
+        cors: true,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        }
       }
     }
   },
-  // Ensure proper dev server configuration
-  vite: {
-    server: {
-      hmr: {
-        protocol: 'ws',
-        host: '0.0.0.0'
-      }
+  runtimeConfig: {
+    public: {
+      supabaseUrl: process.env.SUPABASE_URL,
+      supabaseKey: process.env.SUPABASE_KEY
+    }
+  },
+  app: {
+    head: {
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+      ]
     }
   }
 })

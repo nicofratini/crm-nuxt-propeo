@@ -87,6 +87,9 @@ const supabase = useSupabaseClient()
 const router = useRouter()
 const route = useRoute()
 
+// Wait for profile to be loaded before rendering
+await profileStore.fetchProfile()
+
 async function handleLogout() {
   try {
     const { error } = await supabase.auth.signOut()
