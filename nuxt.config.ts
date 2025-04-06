@@ -12,13 +12,18 @@ export default defineNuxtConfig({
   supabase: {
     url: process.env.SUPABASE_URL,
     key: process.env.SUPABASE_KEY,
-    redirect: false,
+    redirect: true,
     redirectOptions: {
       login: '/auth/login',
       callback: '/auth/confirm',
-      exclude: ['/*'],
+      exclude: [],
     },
     cookieOptions: {
+      name: 'sb-auth',
+      lifetime: 60 * 60 * 8,
+      domain: '',
+      path: '/',
+      sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production'
     },
     clientOptions: {

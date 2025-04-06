@@ -43,18 +43,34 @@
         <div class="border p-4 rounded-lg">
           <h3 class="font-medium mb-2">Import depuis URL</h3>
           <div class="space-y-2">
-            <input
-              v-model="websiteUrl"
-              type="url"
-              placeholder="https://..."
-              class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div class="space-y-2">
+              <div v-for="(url, index) in websiteUrls" :key="index" class="flex gap-2">
+                <input
+                  v-model="websiteUrls[index]"
+                  type="url"
+                  placeholder="https://..."
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  @click="removeUrl(index)"
+                  class="text-red-600 hover:text-red-800 px-2"
+                >
+                  ×
+                </button>
+              </div>
+              <button
+                @click="addUrlField"
+                class="text-blue-600 hover:text-blue-800 text-sm"
+              >
+                + Ajouter une URL
+              </button>
+            </div>
             <button
-              @click="scanWebsite"
-              :disabled="!isValidUrl || scanning"
+              @click="scanWebsites"
+              :disabled="!hasValidUrls || scanning"
               class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span v-if="!scanning">Scanner</span>
+              <span v-if="!scanning">Scanner ({{ validUrlCount }} URL{{ validUrlCount > 1 ? 's' : '' }})</span>
               <span v-else>Scan en cours...</span>
             </button>
             <p v-if="scanError" class="text-sm text-red-600">{{ scanError }}</p>
@@ -263,7 +279,7 @@ const {
 
 const selectedFile = ref<File | null>(null);
 const selectedPDFs = ref<File[]>([]);
-const websiteUrl = ref('');
+const websiteUrls = ref<string[]>(['']); // Initialize with one empty field
 const importing = ref(false);
 const importingPDF = ref(false);
 const scanning = ref(false);
@@ -285,13 +301,26 @@ onMounted(() => {
 });
 
 // Computed
-const isValidUrl = computed(() => {
-  try {
-    new URL(websiteUrl.value);
-    return true;
-  } catch {
-    return false;
-  }
+const hasValidUrls = computed(() => {
+  return websiteUrls.value.some(url => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+});
+
+const validUrlCount = computed(() => {
+  return websiteUrls.value.filter(url => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }).length;
 });
 
 const filteredProperties = computed(() => {
@@ -322,12 +351,47 @@ const filteredProperties = computed(() => {
   return filtered;
 });
 
-const totalProperties = computed(() => filteredProperties.value.length);
-const totalPages = computed(() => Math.ceil(totalProperties.value / itemsPerPage));
-const paginationStart = computed(() => (currentPage.value - 1) * itemsPerPage + 1);
-const paginationEnd = computed(() => Math.min(currentPage.value * itemsPerPage, totalProperties.value));
+// URL Management
+const addUrlField = () => {
+  websiteUrls.value.push('');
+};
 
-// Methods
+const removeUrl = (index: number) => {
+  websiteUrls.value = websiteUrls.value.filter((_, i) => i !== index);
+  if (websiteUrls.value.length === 0) {
+    websiteUrls.value = [''];
+  }
+};
+
+const scanWebsites = async () => {
+  const validUrls = websiteUrls.value.filter(url => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
+  if (validUrls.length === 0) return;
+
+  scanning.value = true;
+  scanError.value = null;
+
+  try {
+    for (const url of validUrls) {
+      await scanWebsiteApi(url);
+    }
+    websiteUrls.value = [''];
+  } catch (e) {
+    console.error('Error scanning websites:', e);
+    scanError.value = "Une erreur s'est produite lors du scan des sites. Veuillez vérifier les URLs et réessayer.";
+  } finally {
+    scanning.value = false;
+  }
+};
+
+// File Management
 const formatFileSize = (bytes: number) => {
   if (bytes === 0) return '0 Bytes';
   const k = 1024;
@@ -388,23 +452,6 @@ const processPDFs = async () => {
     error.value = e instanceof Error ? e.message : "Une erreur s'est produite";
   } finally {
     importingPDF.value = false;
-  }
-};
-
-const scanWebsite = async () => {
-  if (!isValidUrl.value) return;
-  
-  scanning.value = true;
-  scanError.value = null;
-  
-  try {
-    await scanWebsiteApi(websiteUrl.value);
-    websiteUrl.value = '';
-  } catch (e) {
-    console.error('Error scanning website:', e);
-    scanError.value = "Le service de scan est temporairement indisponible. Veuillez vérifier que l'URL est correcte et réessayer dans quelques instants.";
-  } finally {
-    scanning.value = false;
   }
 };
 

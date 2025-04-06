@@ -28,10 +28,36 @@ export function useProperties() {
     error.value = null;
 
     try {
-      const { data, error: err } = await supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        console.warn('User not authenticated, skipping fetchProperties');
+        properties.value = [];
+        loading.value = false;
+        return;
+      }
+
+      // Get user profile to check if admin
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const isAdmin = profile?.is_admin ?? false;
+
+      // If admin, fetch all properties, otherwise only user's properties
+      const query = supabase
         .from('properties')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (!isAdmin) {
+        query.eq('user_id', session.user.id);
+      }
+
+      const { data, error: err } = await query;
 
       if (err) throw err;
       properties.value = (data || []).filter((p): p is Property => p !== null);
@@ -46,7 +72,7 @@ export function useProperties() {
   const createProperty = async (property: Omit<Property, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
+      if (!session?.user?.id) {
         throw new Error('Non authentifié');
       }
 
@@ -62,6 +88,33 @@ export function useProperties() {
       if (err) throw err;
       if (data) {
         properties.value = [data, ...properties.value];
+      }
+      return data;
+    } catch (e) {
+      throw e;
+    }
+  };
+
+  const createProperties = async (newProperties: Omit<Property, 'id' | 'created_at' | 'updated_at' | 'user_id'>[]) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        throw new Error('Non authentifié');
+      }
+
+      const propertiesToInsert = newProperties.map(property => ({
+        ...property,
+        user_id: session.user.id
+      }));
+
+      const { data, error: err } = await supabase
+        .from('properties')
+        .insert(propertiesToInsert)
+        .select();
+
+      if (err) throw err;
+      if (data) {
+        properties.value = [...data, ...properties.value];
       }
       return data;
     } catch (e) {
@@ -109,15 +162,20 @@ export function useProperties() {
     }
   };
 
-  const scanWebsite = async (url: string) => {
+  const scanWebsite = async (url: string, mode: 'single' | 'bulk' = 'single') => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Non authentifié');
+      }
+
       const response = await fetch('/api/scrape-property', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url, mode })
       });
 
       if (!response.ok) {
@@ -130,17 +188,109 @@ export function useProperties() {
         throw new Error(result.error || "Une erreur s'est produite");
       }
 
-      // Save the extracted property to the database
-      const property = await createProperty({
-        ...result.data,
-        source: 'url',
-        source_url: url
-      });
+      if (mode === 'single') {
+        // Save the single extracted property
+        const property = await createProperty({
+          ...result.data,
+          source: 'url',
+          source_url: url
+        });
+        return { success: true, data: property };
+      } else {
+        // Save multiple properties from bulk extraction
+        const { properties: extractedProperties, errors, total, processed, failed } = result.data;
+        
+        if (extractedProperties.length > 0) {
+          await createProperties(
+            extractedProperties.map(p => ({
+              ...p,
+              source: 'url'
+            }))
+          );
+        }
 
-      return { success: true, data: property };
+        return {
+          success: true,
+          data: {
+            total,
+            processed,
+            failed,
+            errors
+          }
+        };
+      }
     } catch (error) {
       console.error('Error scanning website:', error);
       throw new Error(error instanceof Error ? error.message : "Une erreur s'est produite lors de l'analyse du site");
+    }
+  };
+
+  const importCSV = async (file: File) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Non authentifié');
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/process-csv', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur lors de l'importation (${response.status})`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || "Une erreur s'est produite");
+      }
+
+      await fetchProperties(); // Refresh the properties list
+      return result;
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : "Une erreur s'est produite lors de l'importation");
+    }
+  };
+
+  const importPDF = async (files: File[]) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Non authentifié');
+      }
+
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/process-pdf', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erreur lors de l'importation de ${file.name} (${response.status})`);
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || "Une erreur s'est produite");
+        }
+      }
+
+      await fetchProperties(); // Refresh the properties list
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : "Une erreur s'est produite lors de l'importation");
     }
   };
 
@@ -150,8 +300,11 @@ export function useProperties() {
     error,
     fetchProperties,
     createProperty,
+    createProperties,
     updateProperty,
     deleteProperty,
-    scanWebsite
+    scanWebsite,
+    importCSV,
+    importPDF
   };
 }

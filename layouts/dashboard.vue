@@ -1,73 +1,50 @@
 <template>
-  <div class="min-h-screen flex bg-gray-100">
+  <div class="min-h-screen flex bg-gray-50">
     <!-- Sidebar -->
-    <div class="w-64 bg-gray-900 text-gray-100 flex flex-col h-screen fixed">
+    <div class="w-64 bg-white shadow-lg flex flex-col h-screen fixed border-r border-gray-200">
       <!-- App Name/Logo -->
-      <div class="p-4 border-b border-gray-700">
-        <h1 class="text-xl font-bold">Prospeo</h1>
+      <div class="p-6 border-b border-gray-100">
+        <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          Prospeo
+        </h1>
       </div>
 
       <!-- User Info -->
-      <div class="p-4 border-b border-gray-700">
-        <p class="font-semibold">{{ profileStore.profile?.full_name || profileStore.profile?.email }}</p>
-        <p v-if="profileStore.isAdmin" class="text-xs text-blue-400 font-medium">Administrateur</p>
-        <p v-else class="text-xs text-gray-400">Utilisateur</p>
+      <div v-if="profileStore.profile" class="p-6 border-b border-gray-100">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white font-semibold">
+            {{ profileStore.profile.email.charAt(0).toUpperCase() }}
+          </div>
+          <div>
+            <p class="font-medium text-gray-900">{{ profileStore.profile?.full_name || profileStore.profile?.email }}</p>
+            <p v-if="profileStore.isAdmin" class="text-xs text-blue-600 font-medium">Administrateur</p>
+            <p v-else class="text-xs text-gray-500">Utilisateur</p>
+          </div>
+        </div>
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 px-2 py-4 space-y-1">
+      <nav class="flex-1 p-4 space-y-2">
         <NuxtLink 
-          to="/dashboard" 
-          class="block px-4 py-2 rounded transition-colors duration-200"
-          :class="route.path === '/dashboard' ? 'bg-gray-800 text-white' : 'hover:bg-gray-700'"
+          v-for="(item, index) in navigationItems"
+          :key="index"
+          :to="item.path" 
+          class="flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200"
+          :class="route.path === item.path ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'"
         >
-          Dashboard
-        </NuxtLink>
-        <NuxtLink 
-          to="/dashboard/properties" 
-          class="block px-4 py-2 rounded transition-colors duration-200"
-          :class="route.path === '/dashboard/properties' ? 'bg-gray-800 text-white' : 'hover:bg-gray-700'"
-        >
-          Propriétés
-        </NuxtLink>
-        <NuxtLink 
-          to="/dashboard/ai-agent" 
-          class="block px-4 py-2 rounded transition-colors duration-200"
-          :class="route.path === '/dashboard/ai-agent' ? 'bg-gray-800 text-white' : 'hover:bg-gray-700'"
-        >
-          Agent IA
-        </NuxtLink>
-        <NuxtLink 
-          to="/dashboard/calls" 
-          class="block px-4 py-2 rounded transition-colors duration-200"
-          :class="route.path === '/dashboard/calls' ? 'bg-gray-800 text-white' : 'hover:bg-gray-700'"
-        >
-          Appels
-        </NuxtLink>
-        <NuxtLink 
-          to="/dashboard/calendar" 
-          class="block px-4 py-2 rounded transition-colors duration-200"
-          :class="route.path === '/dashboard/calendar' ? 'bg-gray-800 text-white' : 'hover:bg-gray-700'"
-        >
-          Calendrier
-        </NuxtLink>
-        <NuxtLink 
-          v-if="profileStore.isAdmin"
-          to="/admin" 
-          class="block px-4 py-2 rounded transition-colors duration-200"
-          :class="route.path.startsWith('/admin') ? 'bg-gray-800 text-white' : 'hover:bg-gray-700'"
-        >
-          Administration
+          <Icon :name="item.icon" class="w-5 h-5" />
+          <span class="font-medium">{{ item.name }}</span>
         </NuxtLink>
       </nav>
 
       <!-- Logout Button -->
-      <div class="p-4 mt-auto border-t border-gray-700">
+      <div class="p-4 mt-auto border-t border-gray-100">
         <button 
           @click="handleLogout" 
-          class="w-full px-4 py-2 text-left rounded bg-red-600 hover:bg-red-700 text-white font-semibold transition duration-200"
+          class="w-full px-4 py-3 rounded-lg text-left text-red-600 hover:bg-red-50 transition duration-200 flex items-center gap-3"
         >
-          Déconnexion
+          <Icon name="heroicons:arrow-left-on-rectangle" class="w-5 h-5" />
+          <span class="font-medium">Déconnexion</span>
         </button>
       </div>
     </div>
@@ -86,6 +63,26 @@ const profileStore = useProfileStore()
 const supabase = useSupabaseClient()
 const router = useRouter()
 const route = useRoute()
+
+const navigationItems = computed(() => {
+  const items = [
+    { name: 'Dashboard', path: '/dashboard', icon: 'heroicons:home' },
+    { name: 'Propriétés', path: '/dashboard/properties', icon: 'heroicons:building-office-2' },
+    { name: 'Agent IA', path: '/dashboard/ai-agent', icon: 'heroicons:cpu-chip' },
+    { name: 'Appels', path: '/dashboard/calls', icon: 'heroicons:phone' },
+    { name: 'Calendrier', path: '/dashboard/calendar', icon: 'heroicons:calendar' },
+  ]
+
+  if (profileStore.isAdmin) {
+    items.push({ 
+      name: 'Administration', 
+      path: '/admin', 
+      icon: 'heroicons:cog-6-tooth'
+    })
+  }
+
+  return items
+})
 
 // Wait for profile to be loaded before rendering
 await profileStore.fetchProfile()

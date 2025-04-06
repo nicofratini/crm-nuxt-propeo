@@ -137,17 +137,28 @@ const formData = ref({
   description: '',
 });
 
-// Initialize form data when property changes
+// Initialize form data when property changes, with null checks
 watchEffect(() => {
   if (props.property) {
     formData.value = {
-      address: props.property.address,
-      city: props.property.city,
-      type: props.property.type,
-      price: props.property.price,
-      surface: props.property.surface,
-      bedrooms: props.property.bedrooms ?? 0,
-      description: props.property.description ?? '',
+      address: props.property?.address ?? '',
+      city: props.property?.city ?? '',
+      type: props.property?.type ?? 'apartment',
+      price: props.property?.price ?? 0,
+      surface: props.property?.surface ?? 0,
+      bedrooms: props.property?.bedrooms ?? 0,
+      description: props.property?.description ?? '',
+    };
+  } else {
+    // Reset to default values when property is null
+    formData.value = {
+      address: '',
+      city: '',
+      type: 'apartment',
+      price: 0,
+      surface: 0,
+      bedrooms: 0,
+      description: '',
     };
   }
 });
